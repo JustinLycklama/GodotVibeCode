@@ -11,7 +11,6 @@ var grid_row: int = -1  # -1 means not yet placed
 const FALL_SPEED := 200.0  # pixels per second
 
 var _settled := false
-var _matched := false
 
 
 func _ready() -> void:
@@ -57,9 +56,7 @@ func is_settled() -> bool:
 	return _settled
 
 
-func set_matched() -> void:
-	if _matched:
-		return
-	_matched = true
-	block_color = Color.YELLOW
-	$ColorRect.color = block_color
+func start_falling() -> void:
+	# Called when block needs to fall again (e.g., block below was removed)
+	_settled = false
+	grid_row = -1

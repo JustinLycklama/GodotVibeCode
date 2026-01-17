@@ -11,13 +11,16 @@ Main (Node2D)
 ├── Ground (StaticBody2D) @ position 800,625
 │   ├── ColorRect (red platform, 1600x50)
 │   └── CollisionShape2D
-└── BlockSpawner (Node2D) @ position 900,100
-    └── Timer
+├── BlockSpawner (Node2D) @ position 900,100
+│   └── Timer
+└── ResourceUI (CanvasLayer)
+    └── Panel (top-right corner)
+        └── Label (displays resource counts)
 ```
 
 ### game_block.tscn
 ```
-GameBlock (RigidBody2D)
+GameBlock (StaticBody2D)
 ├── ColorRect (50x50, green default)
 ├── Label (displays symbol)
 └── CollisionShape2D (50x50)
@@ -26,67 +29,105 @@ GameBlock (RigidBody2D)
 ## Script Responsibilities
 
 ### match_manager.gd (Autoload)
-The central coordinator for match detection:
-- Maintains a dictionary of all active blocks keyed by instance ID
-- `register_block(block)` - Called when a block enters the scene
-- `unregister_block(block)` - Called when a block is removed
-- `get_grid_position(world_pos)` - Converts world coords to grid coords
-- `check_for_matches()` - Scans all blocks for horizontal and vertical matches
-- `_check_horizontal_matches()` / `_check_vertical_matches()` - Internal match logic
+The central coordinator for grid state, match detection, and resources:
+- **Grid Management**:
+  - `grid: Dictionary` - Maps `Vector2i(col, row)` to block references
+  - `is_cell_occupied(col, row)` - Check if a cell has a block
+  - `place_block(block, col, row)` - Register block at grid position
+  - `get_landing_row(col)` - Find lowest empty row in column
+  - `grid_to_world(col, row)` - Convert grid coords to world position
+- **Match Detection**:
+  - `request_match_check()` - Queue a deferred match check
+  - `_do_match_check()` - Find and process all matches
+  - `_find_horizontal_matches()` / `_find_vertical_matches()` - Internal match logic
+- **Block Removal & Gravity**:
+  - `_remove_block(block)` - Remove from grid and destroy
+  - `_apply_gravity(columns)` - Make floating blocks fall
+- **Resource Tracking**:
+  - `resources: Dictionary` - Maps symbol to count (e.g., `{"#": 0, "$": 0, ...}`)
+  - `add_resource(symbol, amount)` - Add to resource counter
+  - `get_resources()` - Get current resource dictionary
+  - `resources_changed` signal - Emitted when resources update
 
 ### game_block.gd
 Individual block behavior:
-- Tracks its symbol and color
-- Monitors velocity to detect when it has "settled"
+- Tracks `symbol`, `block_color`, `grid_col`, `grid_row`
+- Falls at fixed speed (200 px/sec) until reaching landing position
+- Snaps to grid position when landing
 - Registers with MatchManager on ready, unregisters on exit
-- Calls `MatchManager.check_for_matches()` when it settles
+- `start_falling()` - Called to make block fall again after gravity applied
+- `is_settled()` - Check if block has landed
 
 ### block_spawner.gd
 Continuous block generation:
 - References `game_block.tscn` scene
 - Uses Timer to spawn at regular intervals
 - Randomly selects column and symbol for each new block
+- Sets `grid_col` on spawned blocks
 
 ### box_controller.gd
 Player movement:
-- Simple left/right movement with arrow keys
+- Left/right movement with arrow keys
+- Jump with up arrow (only when on floor)
 - Applies gravity
 - Uses `move_and_slide()` for physics-based movement
 
+### resource_ui.gd
+Resource display:
+- Connects to `MatchManager.resources_changed` signal
+- Updates label text when resources change
+- Displays all resource types and their counts
+
 ## Grid System
 
-The game uses a virtual grid for match detection:
-- **Column width**: 60 pixels
-- **Row height**: 60 pixels (inferred from block size + spacing)
-- **Grid origin**: Based on BlockSpawner position
+The game uses a grid-locked system for blocks:
+- **Column spacing**: 50 pixels (same as block size, no gaps)
+- **Block size**: 50x50 pixels
+- **Grid origin**: `FIRST_COLUMN_X = 800`, `GROUND_TOP_Y = 600`
+- **Row 0**: Bottom row, just above ground
+- **Rows increase upward**: Row 1 is above row 0, etc.
 
-Grid position is calculated by dividing world position by cell size and rounding.
+Grid position formula:
+- World X = `FIRST_COLUMN_X + col * COLUMN_SPACING`
+- World Y = `GROUND_TOP_Y - (row * BLOCK_SIZE) - (BLOCK_SIZE / 2.0)`
 
 ## Data Flow
 
 ```
 BlockSpawner
     │
-    ▼ (instantiates)
+    ▼ (instantiates with grid_col)
 GameBlock ──────────► MatchManager.register_block()
     │
-    │ (physics tick)
+    │ (_process: fall until landing)
     ▼
-Block settles ──────► MatchManager.check_for_matches()
+Block settles ──────► MatchManager.place_block()
+    │                 MatchManager.request_match_check()
+    ▼
+Match found ────────► _remove_block() for each matched block
+    │                 add_resource() for each symbol
+    │                 resources_changed signal emitted
+    ▼
+_apply_gravity() ───► Floating blocks call start_falling()
     │
     ▼
-Match found ────────► Block.modulate = yellow
+ResourceUI ─────────► _on_resources_changed() updates display
 ```
 
 ## Constants Reference
 
 | Constant | Value | Location |
 |----------|-------|----------|
-| MOVE_SPEED | 300 | box_controller.gd |
-| GRAVITY | 800 | box_controller.gd |
-| SPAWN_INTERVAL | 2.0 | block_spawner.gd |
-| NUM_COLUMNS | 5 | block_spawner.gd |
-| COLUMN_SPACING | 60 | block_spawner.gd |
+| COLUMN_COUNT | 5 | match_manager.gd |
+| COLUMN_SPACING | 50.0 | match_manager.gd, block_spawner.gd |
+| BLOCK_SIZE | 50.0 | match_manager.gd |
+| CENTER_X | 900.0 | match_manager.gd |
+| GROUND_TOP_Y | 600.0 | match_manager.gd |
+| FIRST_COLUMN_X | 800.0 | match_manager.gd |
+| FALL_SPEED | 200.0 | game_block.gd |
+| RESOURCES_PER_MATCH | 10 | match_manager.gd |
+| speed | 300.0 | box_controller.gd |
+| gravity | 800.0 | box_controller.gd |
+| jump_velocity | -400.0 | box_controller.gd |
+| spawn_interval | 2.0 | block_spawner.gd |
 | SYMBOLS | ["#","$","%","!"] | block_spawner.gd |
-| SETTLE_THRESHOLD | 5.0 | game_block.gd |
-| SETTLE_TIME | 0.3 | game_block.gd |
