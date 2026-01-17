@@ -9,6 +9,10 @@ var held_block: StaticBody2D = null
 const HELD_BLOCK_OFFSET := Vector2(0, -50)  # Block appears above player's head
 
 
+func _ready() -> void:
+	add_to_group("player")
+
+
 func _physics_process(delta: float) -> void:
 	# Apply gravity
 	velocity.y += gravity * delta
@@ -28,9 +32,43 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
+	# Push any overlapping falling blocks up out of the way
+	_push_overlapping_blocks_up()
+
 	# Update held block position to follow player
 	if held_block and is_instance_valid(held_block):
 		held_block.global_position = global_position + HELD_BLOCK_OFFSET
+
+
+func _push_overlapping_blocks_up() -> void:
+	const PLAYER_HALF := 23.0
+	const BLOCK_HALF := 25.0
+
+	# Check all registered blocks for overlap
+	for block in MatchManager.blocks:
+		if not is_instance_valid(block):
+			continue
+		# Skip settled blocks (they have physics collision) and held block
+		if block._settled or block == held_block:
+			continue
+
+		# Check for overlap using AABB
+		var player_left: float = global_position.x - PLAYER_HALF
+		var player_right: float = global_position.x + PLAYER_HALF
+		var player_top: float = global_position.y - PLAYER_HALF
+		var player_bottom: float = global_position.y + PLAYER_HALF
+
+		var block_left: float = block.global_position.x - BLOCK_HALF
+		var block_right: float = block.global_position.x + BLOCK_HALF
+		var block_top: float = block.global_position.y - BLOCK_HALF
+		var block_bottom: float = block.global_position.y + BLOCK_HALF
+
+		var x_overlap: bool = player_left < block_right and player_right > block_left
+		var y_overlap: bool = player_top < block_bottom and player_bottom > block_top
+
+		if x_overlap and y_overlap:
+			# Push the block up so its bottom is at player's top
+			block.global_position.y = player_top - BLOCK_HALF
 
 
 func _input(event: InputEvent) -> void:
