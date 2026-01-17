@@ -3,7 +3,7 @@ extends Node2D
 @export var spawn_interval: float = 2.0
 @export var game_block_scene: PackedScene
 @export var columns: int = 5
-@export var column_spacing: float = 60.0
+@export var column_spacing: float = 50.0  # Same as block size - no gaps
 
 var symbols: Array[String] = ["#", "$", "%", "!"]
 
@@ -27,6 +27,7 @@ func spawn_block() -> void:
 
 		block.position = Vector2(spawn_x, position.y)
 		block.symbol = symbols.pick_random()
+		block.grid_col = column  # Set grid column for falling logic
 		get_parent().add_child(block)
 
 func _on_timer_timeout() -> void:

@@ -1,14 +1,16 @@
-extends RigidBody2D
+extends StaticBody2D
 
 @export var symbol: String = "#"
 @export var block_color: Color = Color(0.2, 0.7, 0.3, 1)
 
-# Settlement detection
-const SETTLE_VELOCITY_THRESHOLD := 5.0  # pixels/second
-const SETTLE_TIME_REQUIRED := 0.3  # seconds
+# Grid position
+var grid_col: int = 0
+var grid_row: int = -1  # -1 means not yet placed
+
+# Fall settings
+const FALL_SPEED := 200.0  # pixels per second
 
 var _settled := false
-var _settle_timer := 0.0
 var _matched := false
 
 
@@ -24,20 +26,31 @@ func _exit_tree() -> void:
 		MatchManager.unregister_block(self)
 
 
-func _physics_process(delta: float) -> void:
+func _process(delta: float) -> void:
 	if _settled:
 		return
 
-	var speed := linear_velocity.length()
+	# Get the target landing row for this column
+	var landing_row := MatchManager.get_landing_row(grid_col)
+	var landing_pos := MatchManager.grid_to_world(grid_col, landing_row)
 
-	if speed < SETTLE_VELOCITY_THRESHOLD:
-		_settle_timer += delta
-		if _settle_timer >= SETTLE_TIME_REQUIRED:
-			_settled = true
-			if MatchManager:
-				MatchManager.request_match_check()
+	# Check if we've reached or passed the landing position
+	if position.y >= landing_pos.y:
+		# Snap to grid position
+		position = landing_pos
+		grid_row = landing_row
+		_settle()
 	else:
-		_settle_timer = 0.0
+		# Continue falling
+		position.y += FALL_SPEED * delta
+
+
+func _settle() -> void:
+	_settled = true
+	# Register in the grid
+	MatchManager.place_block(self, grid_col, grid_row)
+	# Request match check
+	MatchManager.request_match_check()
 
 
 func is_settled() -> bool:
