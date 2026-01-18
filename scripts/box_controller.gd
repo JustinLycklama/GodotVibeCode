@@ -5,6 +5,7 @@ extends CharacterBody2D
 
 # Spider movement system
 var surface_normal: Vector2 = Vector2.UP  # Direction away from surface (player's "up")
+var _previous_surface_normal: Vector2 = Vector2.UP  # Track previous surface to prevent back-transitions
 var is_attached: bool = true              # Currently on a surface?
 var target_rotation: float = 0.0          # For smooth rotation lerping
 var input_direction: float = 0.0          # Current movement input (-1, 0, or 1)
@@ -136,19 +137,47 @@ func _check_surface_transitions() -> void:
 		_attach_to_surface(forward_ray.normal)
 		return
 
-	# 2. Check if floor disappeared (wrap around outer corner)
-	var down_ray := _cast_ray(-surface_normal, FLOOR_DETECT_DISTANCE, Color.BLUE)
-	if down_ray.is_empty():
-		# Try to find corner to wrap around
-		var corner_dir := (move_dir - surface_normal).normalized()
-		var corner_ray := _cast_ray(corner_dir, CORNER_DETECT_DISTANCE, Color.MAGENTA)
+	# 2. "One foot on, one foot off" corner detection using dual rays
+	# If one ray hits and the other misses, we're at an outer corner
+	var perpendicular := surface_normal.rotated(PI / 2)
+	var down := -surface_normal
+
+	# Leading foot (ahead in movement direction) and trailing foot
+	var leading_origin: Vector2
+	var trailing_origin: Vector2
+	if input_direction > 0:
+		leading_origin = global_position + perpendicular * RAY_OFFSET
+		trailing_origin = global_position + perpendicular * -RAY_OFFSET
+	else:
+		leading_origin = global_position + perpendicular * -RAY_OFFSET
+		trailing_origin = global_position + perpendicular * RAY_OFFSET
+
+	var leading_ray := _cast_ray_from(leading_origin, down, RAY_LENGTH, Color.ORANGE)
+	var trailing_ray := _cast_ray_from(trailing_origin, down, RAY_LENGTH, Color.CYAN)
+
+	var leading_on := not leading_ray.is_empty()
+	var trailing_on := not trailing_ray.is_empty()
+
+	if not leading_on and trailing_on:
+		# Leading foot is floating - we're at an outer corner
+		# Start ray from the side of player (toward surface), angle it back toward center
+		var side_origin := global_position + down * RAY_OFFSET
+		var corner_dir := (down - move_dir * 0.5).normalized()  # Into surface, angled back
+		var corner_ray := _cast_ray_from(side_origin, corner_dir, CORNER_DETECT_DISTANCE, Color.MAGENTA)
 		if not corner_ray.is_empty():
-			_attach_to_surface(corner_ray.normal)
-		else:
-			is_attached = false  # Start falling
+			# Don't transition back to the surface we just came from
+			var new_normal: Vector2 = corner_ray.normal
+			if new_normal.dot(_previous_surface_normal) < 0.8:  # Different enough from previous
+				_attach_to_surface(new_normal)
+				return
+
+	# 3. Both rays miss = detach and fall
+	if not leading_on and not trailing_on:
+		is_attached = false
 
 
 func _attach_to_surface(new_normal: Vector2) -> void:
+	_previous_surface_normal = surface_normal  # Remember where we came from
 	surface_normal = new_normal.normalized()
 	is_attached = true
 	# Convert normal to rotation: normal points "up" from player's perspective
@@ -196,16 +225,13 @@ func _get_surface_info() -> Dictionary:
 	var perpendicular := surface_normal.rotated(PI / 2)
 	var down := -surface_normal
 
-	# Left ray: starts left, tilts slightly right (toward center)
+	# Two rays on either side, pointing straight down (into surface)
+	# Same positions as corner detection for consistency
 	var left_origin := global_position + perpendicular * -RAY_OFFSET
-	var left_dir := down.rotated(-RAY_INWARD_TILT)  # Tilt toward center
-
-	# Right ray: starts right, tilts slightly left (toward center)
 	var right_origin := global_position + perpendicular * RAY_OFFSET
-	var right_dir := down.rotated(RAY_INWARD_TILT)  # Tilt toward center
 
-	var hit_left := _cast_ray_from(left_origin, left_dir, RAY_LENGTH, Color.ORANGE)
-	var hit_right := _cast_ray_from(right_origin, right_dir, RAY_LENGTH, Color.CYAN)
+	var hit_left := _cast_ray_from(left_origin, down, RAY_LENGTH, Color.ORANGE)
+	var hit_right := _cast_ray_from(right_origin, down, RAY_LENGTH, Color.CYAN)
 
 	if hit_left.is_empty() and hit_right.is_empty():
 		return {}
