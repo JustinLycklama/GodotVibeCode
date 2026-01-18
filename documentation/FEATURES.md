@@ -44,12 +44,23 @@
 - [x] Shows format: "symbol: count" for each resource type
 - Location: `scripts/resource_ui.gd`, `scenes/main.tscn`
 
-### Player Controller
-- [x] Movable blue box character
-- [x] Left/Right arrow key movement (300 pixels/second)
-- [x] Jump with Up arrow key (velocity: -400)
-- [x] Gravity applied (800 pixels/second²)
-- [x] Can walk and jump on settled blocks (platformer-style)
+### Player Controller - Spider-Style Surface Traversal
+- [x] Spider-like movement following surface contours
+- [x] Four surface states: FLOOR, WALL_LEFT, WALL_RIGHT, FALLING
+- [x] Seamless transitions between surfaces (climb walls, step onto tops)
+- [x] Visual rotation when on walls (±90°)
+- [x] Left/Right arrows control movement relative to current surface
+- [x] No gravity - player clings to surfaces until they end
+- Location: `scripts/box_controller.gd`
+- **Full Technical Spec:** [SPIDER_MOVEMENT.md](SPIDER_MOVEMENT.md)
+
+### Block Pickup System
+- [x] Press spacebar to pick up the topmost block in current column
+- [x] Held block follows player (offset above head)
+- [x] Press spacebar again to place block at landing position in current column
+- [x] Player teleports on top of placed block after putdown
+- [x] Blocks above picked-up block fall down to fill gap
+- [x] Match checking triggered after block placement
 - Location: `scripts/box_controller.gd`
 
 ### Game Environment
@@ -76,7 +87,8 @@
 - [ ] Win conditions
 
 ### Player Interaction
-- [ ] Player interaction with blocks (pushing, catching)
+- [x] Block pickup and placement (spacebar)
+- [ ] Block pushing while climbing
 - [ ] Special abilities or power-ups
 - [ ] Resource-powered abilities
 
