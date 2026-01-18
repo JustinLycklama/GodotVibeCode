@@ -47,9 +47,18 @@
 ### Player Controller
 - [x] Movable blue box character
 - [x] Left/Right arrow key movement (300 pixels/second)
-- [x] Jump with Up arrow key (velocity: -400)
 - [x] Gravity applied (800 pixels/second²)
 - [x] Can walk and jump on settled blocks (platformer-style)
+- Location: `scripts/box_controller.gd`
+
+### Spider Movement System
+- [x] Player can walk on any surface (floors, walls, ceilings)
+- [x] Smooth surface transitions when walking into walls or around corners
+- [x] Dual-ray detection with inward tilt for better edge handling
+- [x] Constant-speed rotation (8 rad/sec) for smooth visual transitions
+- [x] Surface snapping to prevent player launch during rotation
+- [x] Automatic detachment and falling when no surface is detected
+- Reference: [Asteroid Base - Learning How to Walk](https://www.asteroidbase.com/devlog/7-learning-how-to-walk/)
 - Location: `scripts/box_controller.gd`
 
 ### Game Environment
