@@ -5,7 +5,7 @@
 [ext_resource type="Script" path="res://scripts/resource_ui.gd" id="3_resource_ui"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
-size = Vector2(46, 46)
+size = Vector2(35, 35)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ground"]
 size = Vector2(1600, 50)
@@ -13,18 +13,29 @@ size = Vector2(1600, 50)
 [node name="Main" type="Node2D"]
 
 [node name="Player" type="CharacterBody2D" parent="."]
-position = Vector2(250, 250)
+position = Vector2(392, 574)
 script = ExtResource("1_box")
+speed = 150.0
+snap_angle_threshold = 1.0
 
 [node name="ColorRect" type="ColorRect" parent="Player"]
-offset_left = -23.0
-offset_top = -23.0
-offset_right = 23.0
-offset_bottom = 23.0
+offset_left = -17.5
+offset_top = -17.5
+offset_right = 17.5
+offset_bottom = 17.5
 color = Color(0.3, 0.5, 0.8, 1)
+metadata/_edit_use_anchors_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
 shape = SubResource("RectangleShape2D_player")
+
+[node name="LeftRay" type="RayCast2D" parent="Player"]
+position = Vector2(-6, 0)
+target_position = Vector2(-19, 28)
+
+[node name="RightRay" type="RayCast2D" parent="Player"]
+position = Vector2(15, 9)
+target_position = Vector2(9, 18)
 
 [node name="Ground" type="StaticBody2D" parent="."]
 position = Vector2(800, 625)
@@ -41,7 +52,7 @@ shape = SubResource("RectangleShape2D_ground")
 
 [node name="BlockSpawner" parent="." instance=ExtResource("2_spawner")]
 position = Vector2(900, 100)
-spawn_interval = 3.0
+spawn_interval = 1.0
 
 [node name="ResourceUI" type="CanvasLayer" parent="."]
 script = ExtResource("3_resource_ui")
