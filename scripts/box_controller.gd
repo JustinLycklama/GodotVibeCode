@@ -2,7 +2,6 @@ extends CharacterBody2D
 
 @export var speed: float = 300.0
 @export var gravity: float = 800.0
-@export var jump_velocity: float = -400.0
 
 # Block pickup system
 var held_block: StaticBody2D = null
@@ -14,21 +13,35 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	# Apply gravity
-	velocity.y += gravity * delta
-
-	# Jump when on floor
-	if is_on_floor() and Input.is_action_just_pressed("ui_up"):
-		velocity.y = jump_velocity
-
-	# Horizontal movement
+	# Get left/right input
 	var direction := 0.0
 	if Input.is_action_pressed("ui_right"):
 		direction += 1
 	if Input.is_action_pressed("ui_left"):
 		direction -= 1
 
-	velocity.x = direction * speed
+	# Check if we're pressing into a wall
+	var pressing_into_wall := false
+	if is_on_wall() and direction != 0:
+		var wall_normal := get_wall_normal()
+		# Wall normal points away from wall, so if we're pressing toward the wall
+		# (direction opposite to normal), we should climb
+		if (direction > 0 and wall_normal.x < 0) or (direction < 0 and wall_normal.x > 0):
+			pressing_into_wall = true
+
+	if pressing_into_wall:
+		# Climb up the wall while pressing into it
+		velocity.x = 0
+		velocity.y = -speed
+	elif direction != 0:
+		# Normal horizontal movement
+		velocity.x = direction * speed
+		# Apply gravity when moving horizontally
+		velocity.y += gravity * delta
+	else:
+		# Not pressing any direction - apply gravity and stop horizontal movement
+		velocity.x = 0
+		velocity.y += gravity * delta
 
 	move_and_slide()
 
